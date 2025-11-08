@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: alora-backend
+server:
+  port: 8080
