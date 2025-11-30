@@ -17,12 +17,17 @@ public class SecurityConfig {
 
                 // Aquí definimos las reglas de quién pasa y quién no
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("public/**").permitAll()
+                        .requestMatchers("/public/**" , "/care/**", "/auth/**").permitAll()
 
                         // Para cualquier otra cosa, exigimos que el usuario esté autenticado
                         .anyRequest().authenticated()
                 );
 
         return http.build();
+    }
+
+    @Bean
+    public org.springframework.security.crypto.password.PasswordEncoder passwordEncoder(){
+        return new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
     }
 }
