@@ -15,7 +15,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
 
-                // Aquí definimos las reglas de quién pasa y quién no
+                // reglas para el acceso
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/public/**" , "/care/**", "/auth/**").permitAll()
 
