@@ -1,8 +1,11 @@
 package com.alora.api;
 
+import com.alora.auth.dto.LoginRequest;
+import com.alora.auth.dto.LoginResponse;
 import com.alora.auth.dto.RegisterRequest;
 import com.alora.auth.model.User;
 import com.alora.auth.service.AuthService;
+import com.alora.auth.service.JwtService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,9 +21,12 @@ import java.net.URI;
 public class AuthController {
 
     private final AuthService authService;
+    private final JwtService jwtService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, JwtService jwtService) {
+
         this.authService = authService;
+        this.jwtService = jwtService;
     }
 
     @PostMapping("/register")
@@ -31,9 +37,21 @@ public class AuthController {
                 request.fullName()
         );
 
-        // Devolvemos un 201 Created
         return ResponseEntity
                 .created(URI.create("/user/" + newUser.getId()))
                 .body(newUser);
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        User authenticatedUser = authService.authenticate(
+                request.email(),
+                request.password());
+
+        //Generamos el token para ese usuario
+        String token = jwtService.generateToken(authenticatedUser.getEmail());
+
+        // Devolvemos el token
+        return ResponseEntity.ok(new LoginResponse(token));
     }
 }
