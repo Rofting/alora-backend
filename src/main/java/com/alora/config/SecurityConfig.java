@@ -1,33 +1,47 @@
 package com.alora.config;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-@Configuration // 1. Indica que esta clase tiene configuración de Spring
-@EnableWebSecurity // 2. Activa la seguridad web
+@Configuration
+@EnableWebSecurity
+@RequiredArgsConstructor // <-- AÑADIDO: Necesario para inyectar el filtro y el provider
 public class SecurityConfig {
+
+    // --- NUEVAS DEPENDENCIAS ---
+    private final JwtAuthenticationFilter jwtAuthFilter;
+    private final AuthenticationProvider authenticationProvider;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
 
-                // reglas para el acceso
+                // 1. REGLAS DE ACCESO
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/public/**" , "/care/**", "/auth/**").permitAll()
-
-                        // Para cualquier otra cosa, exigimos que el usuario esté autenticado
                         .anyRequest().authenticated()
-                );
+                )
+
+                // 2. POLÍTICA SIN SESIÓN (STATELESS)
+                .sessionManagement(sess -> sess
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+
+                // 3. ASIGNAR EL PROVEEDOR (Conexión con la BD)
+                .authenticationProvider(authenticationProvider)
+
+                // 4. METER TU FILTRO EN LA CADENA
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    @Bean
-    public org.springframework.security.crypto.password.PasswordEncoder passwordEncoder(){
-        return new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
-    }
 }

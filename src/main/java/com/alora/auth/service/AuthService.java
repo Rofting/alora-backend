@@ -1,49 +1,67 @@
 package com.alora.auth.service;
 
+import com.alora.auth.dto.LoginRequest;
+import com.alora.auth.dto.LoginResponse;
+import com.alora.auth.dto.RegisterRequest;
+import com.alora.auth.model.Role;
 import com.alora.auth.model.User;
 import com.alora.auth.repository.UserRepository;
+import com.alora.auth.service.JwtService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final AuthenticationManager authenticationManager;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
+    // --- REGISTRO ---
+    public LoginResponse register(RegisterRequest request) {
 
-    // Método para registrar un nuevo cuidador/familiar
-    public User register(String email, String rawPassword, String fullName) {
-        // 1. Verificar si ya existe
-        if (userRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException("El email ya está registrado");
-        }
-
-        // 2. Crear el usuario con la contraseña ENCRIPTADA
+        // 1. Crear el usuario
         User user = User.builder()
-                .email(email)
-                .password(passwordEncoder.encode(rawPassword))
-                .fullName(fullName)
+                .email(request.email())
+                .fullName(request.fullName())
+
+                .password( passwordEncoder.encode(request.password()) )
+                .role(Role.USER)
+                .createdAt(java.time.Instant.now())
                 .build();
 
-        // 3. Guardar en BBDD
-        return userRepository.save(user);
+        // 2: Manda el usuario a la base de datos
+        userRepository.save(user);
+
+        // 3. Generar token
+        String token = jwtService.generateToken(user);
+        return new LoginResponse(token);
     }
 
-    public User authenticate(String email, String rawPassword) {
-        // 1. Buscamos al usuario. Si no existe, lanzamos error.
-        User user = userRepository.findByEmail(email)
+    // --- LOGIN ---
+    public LoginResponse login(LoginRequest request) {
+
+        // 1. AUTENTICACIÓN AUTOMÁTICA
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.email(),
+                        request.password()
+                )
+        );
+
+        // 2. Si pasamos la línea de arriba, es que el usuario es válido.
+        User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        // 2. Comparamos la contraseña que entra con el HASH de la BBDD
-        if (!passwordEncoder.matches(rawPassword,user.getPassword())){
-            throw new RuntimeException("Contraseña incorrecta");
-        }
+        // 3. GENERAR EL TOKEN
+        // 4: Usa el jwtService para generar el token del usuario encontrado
+        String token = jwtService.generateToken(user);
 
-        return user;
+        return new LoginResponse(token);
     }
 }

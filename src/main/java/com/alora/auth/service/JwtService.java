@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -18,13 +19,21 @@ public class JwtService {
 
     private static final String SECRET_KEY = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6";
 
-    // Método para generar el Token (La tarjeta)
-    public String generateToken(String username) {
+
+    // 1. Método Simple (El que estás llamando desde AuthService)
+    public String generateToken(UserDetails userDetails) {
+        // Llamamos al método complejo enviándole un mapa vacío (sin datos extra)
+        return generateToken(new HashMap<>(), userDetails);
+    }
+
+    // 2. Método Complejo (Permite añadir "Claims" extra, como roles o IDs específicos)
+    public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
         return Jwts.builder()
-                .setSubject(username) // ¿Para quién es la tarjeta? (Email)
-                .setIssuedAt(new Date(System.currentTimeMillis())) // ¿Cuándo se hizo?
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) // Caduca en 24 horas
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256) // Firmar digitalmente
+                .setClaims(extraClaims)
+                .setSubject(userDetails.getUsername())
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) // 24 horas
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
