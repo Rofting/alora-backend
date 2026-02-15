@@ -12,10 +12,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-@RequiredArgsConstructor // <-- AÑADIDO: Necesario para inyectar el filtro y el provider
+@RequiredArgsConstructor
 public class SecurityConfig {
 
-    // --- NUEVAS DEPENDENCIAS ---
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final AuthenticationProvider authenticationProvider;
 

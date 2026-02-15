@@ -9,5 +9,4 @@ public class AloraBackendApplication {
     public static void main(String[] args) {
         SpringApplication.run(AloraBackendApplication.class, args);
     }
-
 }

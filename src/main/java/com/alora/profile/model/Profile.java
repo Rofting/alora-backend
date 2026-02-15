@@ -1,5 +1,6 @@
 package com.alora.profile.model;
 
+import com.alora.auth.model.User;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -67,4 +68,8 @@ public class Profile {
 
     @Column(length = 12)
     private String pinCode;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 }

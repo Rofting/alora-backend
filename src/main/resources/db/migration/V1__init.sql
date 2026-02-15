@@ -33,9 +33,6 @@ create table if not exists care_note (
 create index if not exists idx_care_note_profile_created
     on care_note(profile_id, created_at desc);
 
--- (Reserva para recordatorios si los vas a persistir pronto)
--- create table reminder ( ... );
-
 -- --------- DATOS DE PRUEBA PARA DEMO ---------
 insert into profiles (
     full_name, email, birth_date, gender, medical_conditions, allergies, medications,
