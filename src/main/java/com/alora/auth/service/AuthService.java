@@ -1,12 +1,11 @@
 package com.alora.auth.service;
 
-import com.alora.auth.dto.LoginRequest;
-import com.alora.auth.dto.LoginResponse;
-import com.alora.auth.dto.RegisterRequest;
+import com.alora.auth.model.dto.LoginRequest;
+import com.alora.auth.model.dto.LoginResponse;
+import com.alora.auth.model.dto.RegisterRequest;
 import com.alora.auth.model.Role;
 import com.alora.auth.model.User;
 import com.alora.auth.repository.UserRepository;
-import com.alora.auth.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -59,7 +58,7 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
         // 3. GENERAR EL TOKEN
-        // 4: Usa el jwtService para generar el token del usuario encontrado
+
         String token = jwtService.generateToken(user);
 
         return new LoginResponse(token);

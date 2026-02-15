@@ -17,7 +17,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User implements UserDetails { // <-- 1. AHORA ES UN "PASAPORTE" DE SPRING
+public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,48 +35,38 @@ public class User implements UserDetails { // <-- 1. AHORA ES UN "PASAPORTE" DE 
     @Column(nullable = false)
     private Instant createdAt;
 
-    // --- NUEVO CAMPO PARA SEGURIDAD ---
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
 
 
-    // =====================================================================
-    // MÉTODOS OBLIGATORIOS DE LA INTERFAZ UserDetails
-    // =====================================================================
-
-    // 1. ¿Qué permisos tiene? Convierte nuestro Role en un Authority de Spring
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority(role.name()));
     }
 
-    // 2. ¿Con qué se loguea? Con el email.
     @Override
     public String getUsername() {
         return email;
     }
 
-    // (El getPassword() ya lo tienes creado gracias al @Getter de Lombok)
-
-    // 3. ¿La cuenta está activa? (De momento, ponemos que todo está OK)
     @Override
     public boolean isAccountNonExpired() {
-        return true; // La cuenta no ha expirado
+        return true;
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return true; // La cuenta no está bloqueada
+        return true;
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return true; // La contraseña no ha caducado
+        return true;
     }
 
     @Override
     public boolean isEnabled() {
-        return true; // El usuario está habilitado
+        return true;
     }
 }

@@ -1,8 +1,8 @@
 package com.alora.auth.controller;
 
-import com.alora.auth.dto.LoginRequest;
-import com.alora.auth.dto.LoginResponse;
-import com.alora.auth.dto.RegisterRequest;
+import com.alora.auth.model.dto.LoginRequest;
+import com.alora.auth.model.dto.LoginResponse;
+import com.alora.auth.model.dto.RegisterRequest;
 import com.alora.auth.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

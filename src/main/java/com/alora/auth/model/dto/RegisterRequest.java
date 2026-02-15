@@ -1,4 +1,4 @@
-package com.alora.auth.dto;
+package com.alora.auth.model.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
