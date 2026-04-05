@@ -25,7 +25,7 @@ public class SecurityConfig {
 
                 // 1. REGLAS DE ACCESO
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/public/**" , "/care/**", "/auth/**").permitAll()
+                        .requestMatchers("/public/**" , "/care/**", "/auth/**", "/images/**", "/error").permitAll()
                         .anyRequest().authenticated()
                 )
 

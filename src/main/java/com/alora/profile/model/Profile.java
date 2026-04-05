@@ -69,6 +69,9 @@ public class Profile {
     @Column(length = 12)
     private String pinCode;
 
+    @Column(name = "photo_url")
+    private String photoUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;

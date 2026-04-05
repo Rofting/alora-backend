@@ -27,6 +27,7 @@ public class PrivateProfileDto {
 
     private String qrToken;
     private String pinCode;
+    private String photoUrl;
 
     private List<CareLogDto> recentLogs;
 }

@@ -43,4 +43,14 @@ public class PrivateProfileController {
         service.deleteProfile(id);
         return ResponseEntity.noContent().build();
     }
+
+    //subir foto
+    @PostMapping("/{id}/photo")
+    public ResponseEntity<String> uploadPhoto(
+            @PathVariable Long id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file
+    ) {
+        String filename = service.uploadPhoto(id, file);
+        return ResponseEntity.ok("Foto subida con éxito: " + filename);
+    }
 }
