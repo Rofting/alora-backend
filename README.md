@@ -32,7 +32,7 @@ El sistema resuelve un problema crítico: permitir que los servicios de emergenc
 
 ---
 
-## 🛠 Stack Tecnológico
+## Stack Tecnológico
 
 La arquitectura ha sido diseñada priorizando la solidez, la integridad referencial y la escalabilidad vertical:
 
@@ -46,7 +46,7 @@ La arquitectura ha sido diseñada priorizando la solidez, la integridad referenc
 
 ---
 
-## 🧩 Arquitectura Modular
+## Arquitectura Modular
 
 El dominio de la aplicación está estrictamente separado por responsabilidades para evitar el acoplamiento:
 
