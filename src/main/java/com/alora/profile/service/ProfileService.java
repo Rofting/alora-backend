@@ -13,7 +13,14 @@ import com.alora.profile.repository.ProfileRepository;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.UUID;
 
@@ -86,7 +93,6 @@ public class ProfileService {
         User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
         // 2. Preguntar al repositorio: "Dame solo los perfiles de este usuario"
-        // NOTA: Asegúrate de haber cambiado 'findAll' por 'findAllByUser' en el Repository
         List<Profile> profiles = repo.findAllByUser(currentUser);
 
         // 3. Convertir la lista de Entidades a lista de DTOs para devolverla
@@ -140,5 +146,46 @@ public class ProfileService {
 
         // Eliminamos el perfil
         repo.delete(profile);
+    }
+
+    // Subir foto de perfil
+    public String uploadPhoto(Long profileId, MultipartFile file) {
+
+        // 1. Obtener usuario actual
+        User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        // 2. Buscar perfil
+        Profile profile = repo.findById(profileId)
+                .orElseThrow(() -> new RuntimeException("Profile not found"));
+
+        // 3. Verificar dueño
+        if (!profile.getUser().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("No tienes permiso para subir foto de perfil");
+        }
+
+        try {
+            // 4. Preparar carpeta
+            Path uploadPath = Paths.get("uploads");
+
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+
+            // 5. Generar nombre
+            String filename = "profile_" + profile.getId() + "_" + file.getOriginalFilename();
+            Path filePath = uploadPath.resolve(filename);
+
+            // 6. GUARDAR
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+            // 7. Actualizar BD
+            profile.setPhotoUrl(filename);
+            repo.save(profile);
+
+            return filename;
+
+        } catch (IOException e) {
+            throw new RuntimeException("Error al subir la foto", e);
+        }
     }
 }

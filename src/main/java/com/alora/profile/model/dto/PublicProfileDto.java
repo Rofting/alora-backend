@@ -11,4 +11,5 @@ public class PublicProfileDto {
     private String allergies;
     private String emergencyContactName;
     private String emergencyContactPhone;
+    private String photoUrl;
 }
