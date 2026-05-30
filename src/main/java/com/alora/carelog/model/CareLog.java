@@ -2,18 +2,20 @@ package com.alora.carelog.model;
 
 import com.alora.profile.model.Profile;
 import jakarta.persistence.*;
+import com.alora.config.BaseEntity;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
 @Table(name = "care_logs")
-public class CareLog {
+public class CareLog extends BaseEntity{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,8 +31,4 @@ public class CareLog {
 
     private String note;
 
-
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
 }

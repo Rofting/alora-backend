@@ -15,6 +15,12 @@ public class PrivateProfileController {
 
     private final ProfileService service;
 
+    // Obtener un perfil por ID
+    @GetMapping("/{id}")
+    public ResponseEntity<PrivateProfileDto> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getProfileById(id));
+    }
+
     // Crear ficha
     @PostMapping
     public ResponseEntity<PrivateProfileDto> create(@RequestBody PrivateProfileDto dto) {

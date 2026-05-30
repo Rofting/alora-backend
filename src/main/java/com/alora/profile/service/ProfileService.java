@@ -57,7 +57,7 @@ public class ProfileService {
         PrivateProfileDto dto = mapper.map(p, PrivateProfileDto.class);
 
         //buscamos los registros del paciente
-        List<CareLog> logs = careLogRepo.findByProfileId(p.getId());
+        List<CareLog> logs = careLogRepo.findByProfile_IdOrderByCreatedAtDesc(p.getId());
 
         //convertimos a dto
         List<CareLogDto> logsDto = logs.stream()
@@ -66,6 +66,17 @@ public class ProfileService {
 
         dto.setRecentLogs(logsDto);
         return dto;
+    }
+
+    // --- OBTENER UN PERFIL POR ID
+    public PrivateProfileDto getProfileById(Long profileId) {
+        User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Profile profile = repo.findById(profileId)
+                .orElseThrow(() -> new NotFoundException("Profile not found"));
+        if (!profile.getUser().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("No tienes permiso para ver este perfil");
+        }
+        return mapper.map(profile, PrivateProfileDto.class);
     }
 
     // --- CREAR PERFIL

@@ -9,4 +9,6 @@ public class ReminderDto {
     private String title;
     private LocalTime time;
     private boolean isActive;
+
+    private String daysOfWeek;
 }

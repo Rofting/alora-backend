@@ -6,6 +6,7 @@ import com.alora.auth.model.dto.RegisterRequest;
 import com.alora.auth.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,9 +22,8 @@ public class AuthController {
     // --- ENDPOINT DE REGISTRO ---
     @PostMapping("/register")
     public ResponseEntity<LoginResponse> register(
-            @RequestBody RegisterRequest request
+            @Valid @RequestBody RegisterRequest request
     ) {
-        // 6. Llama al método de registro del servicio
         return ResponseEntity.ok(authService.register(request));
     }
 
@@ -32,7 +32,6 @@ public class AuthController {
     public ResponseEntity<LoginResponse> login(
             @RequestBody LoginRequest request
     ){
-        // 9. Llama al método de login del servicio
         return ResponseEntity.ok(authService.login(request));
     }
 }

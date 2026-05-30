@@ -13,5 +13,11 @@ spring:
     locations: classpath:db/migration
     default-schema: public
 
+app:
+  frontend-url: "http://192.168.1.196:5173/?token="
+  gemini-api-key: ${GEMINI_API_KEY}
+  jwt-secret: ${JWT_SECRET}
+
 server:
   port: 8080
+  address: 0.0.0.0

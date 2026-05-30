@@ -35,13 +35,43 @@ public class ReminderService {
         reminder.setTitle(dto.getTitle());
         reminder.setTime(dto.getTime());
         reminder.setActive(true);
+
+        // 🌟 NUEVO: Mapeamos los días de la semana de Android hacia la Base de Datos
+        if (dto.getDaysOfWeek() != null) {
+            reminder.setDaysOfWeek(dto.getDaysOfWeek());
+        } else {
+            reminder.setDaysOfWeek("TODOS"); // Valor por defecto de seguridad
+        }
+
         reminder.setProfile(profile);
 
         Reminder saved = reminderRepository.save(reminder);
         return mapToDto(saved);
     }
 
-    // 3. Borrar una alarma
+    // 3. Obtener un recordatorio por ID
+    public ReminderDto getReminderById(Long profileId, Long reminderId) {
+        profileRepository.findById(profileId)
+                .orElseThrow(() -> new NotFoundException("Paciente no encontrado"));
+        Reminder reminder = reminderRepository.findByIdAndProfile_Id(reminderId, profileId)
+                .orElseThrow(() -> new NotFoundException("Recordatorio no encontrado"));
+        return mapToDto(reminder);
+    }
+
+    // 4. Actualizar un recordatorio
+    public ReminderDto updateReminder(Long profileId, Long reminderId, ReminderDto dto) {
+        profileRepository.findById(profileId)
+                .orElseThrow(() -> new NotFoundException("Paciente no encontrado"));
+        Reminder reminder = reminderRepository.findByIdAndProfile_Id(reminderId, profileId)
+                .orElseThrow(() -> new NotFoundException("Recordatorio no encontrado"));
+        if (dto.getTitle() != null) reminder.setTitle(dto.getTitle());
+        if (dto.getTime() != null) reminder.setTime(dto.getTime());
+        if (dto.getDaysOfWeek() != null) reminder.setDaysOfWeek(dto.getDaysOfWeek());
+        reminder.setActive(dto.isActive());
+        return mapToDto(reminderRepository.save(reminder));
+    }
+
+    // 5. Borrar una alarma
     public void deleteReminder(Long reminderId) {
         reminderRepository.deleteById(reminderId);
     }
@@ -53,6 +83,10 @@ public class ReminderService {
         dto.setTitle(reminder.getTitle());
         dto.setTime(reminder.getTime());
         dto.setActive(reminder.isActive());
+
+        // 🌟 NUEVO: Empaquetamos los días de la semana para que lleguen a la aplicación de Android
+        dto.setDaysOfWeek(reminder.getDaysOfWeek());
+
         return dto;
     }
 }
