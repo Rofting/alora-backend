@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +17,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/profiles/{profileId}/chat")
 @RequiredArgsConstructor
@@ -38,23 +40,26 @@ public class AssistantController {
 
         try {
             String prompt = """
-                    Eres Alora, una asistente médica virtual altamente empática, paciente y profesional, especializada en el cuidado geriátrico.
-                    Tu objetivo es analizar el mensaje del cuidador, darle una respuesta humana de apoyo y determinar qué acción técnica debe ejecutar el sistema.
-                    
-                    MENSAJE DEL CUIDADOR: "%s"
-                    
-                    INSTRUCCIONES ESTRICTAS:
-                    1. ACTITUD: Responde de forma muy cálida y comprensiva. Si reportan una tarea médica, felicítalos o dales ánimos. MÁXIMO 2 líneas de texto.
-                    2. ANÁLISIS DE INTENCIÓN (Clasificación):
-                       - Si el cuidador indica que YA SE HA REALIZADO una tarea médica, comida o rutina (ej. "ya comió", "se tomó la pastilla", "desayunó", "listo"), la acción debe ser "COMPLETADO".
-                       - Si el cuidador pide RETRASAR una tarea, poner una alarma para más tarde o aplazar algo (ej. "recuérdamelo en un rato", "pospón la alarma", "ahora no"), la acción debe ser "POSPONER".
-                       - Si el usuario solo saluda, hace una pregunta general, o el texto no encaja claramente en las anteriores, la acción debe ser "NINGUNA".
-                    3. REGLA DE FORMATO (CRÍTICA): Es OBLIGATORIO que tu única salida sea un objeto JSON válido. NO incluyas bloques de código Markdown (como ```json). NO añadas ningún texto antes ni después de las llaves {}.
-                    
-                    ESTRUCTURA EXACTA DEL JSON REQUERIDA:
+                    Eres Alora, una asistente médica virtual empática y profesional, especializada en el cuidado geriátrico.
+                    Analiza el mensaje y determina la acción técnica que debe ejecutar el sistema.
+
+                    MENSAJE: "%s"
+
+                    INSTRUCCIONES:
+                    1. Responde de forma cálida y comprensiva. MÁXIMO 2 líneas de texto.
+                    2. CLASIFICACIÓN DE LA INTENCIÓN:
+                       - Si la persona indica que YA realizó la tarea (ej. "ya me la tomé", "hecho", "listo"), accion = "COMPLETADO".
+                       - Si la persona no puede hacerlo ahora (ej. "ahora no", "no estoy en casa", "estoy acostada", "en un rato"), accion = "POSPONER".
+                       - Si la persona pide CREAR un recordatorio nuevo, accion = "CREAR_RECORDATORIO:Título exacto;HH:MM:00;DIAS".
+                         DIAS puede ser: TODOS, o días separados por coma: LUNES,MARTES,MIERCOLES,JUEVES,VIERNES,SABADO,DOMINGO.
+                         Ejemplo: CREAR_RECORDATORIO:Pastilla tensión;10:00:00;LUNES,MIERCOLES,VIERNES
+                       - En cualquier otro caso, accion = "NINGUNA".
+                    3. FORMATO (CRÍTICO): Responde ÚNICAMENTE con un JSON válido, sin bloques Markdown, sin texto extra.
+
+                    ESTRUCTURA EXACTA:
                     {
                       "respuesta": "tu respuesta empática aquí",
-                      "accion": "COMPLETADO" o "POSPONER" o "NINGUNA"
+                      "accion": "COMPLETADO" o "POSPONER" o "NINGUNA" o "CREAR_RECORDATORIO:..."
                     }
                     """.formatted(request.mensaje);
 
@@ -73,7 +78,6 @@ public class AssistantController {
             JSONObject requestBodyObj = new JSONObject();
             requestBodyObj.put("contents", contentsArray);
 
-            // 🌟 CORREGIDO: URL completamente limpia sin residuos de formato Markdown
             String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
             RestTemplate restTemplate = new RestTemplate();
@@ -108,21 +112,15 @@ public class AssistantController {
                     "accion", "NINGUNA"));
 
         } catch (org.springframework.web.client.HttpClientErrorException e) {
-            // 🌟 ESTO IMPRIMIRÁ EL MENSAJE DE ERROR EXACTO QUE ENVÍA GOOGLE
-            System.err.println("=== GOOGLE HA RECHAZADO LA PETICIÓN ===");
-            System.err.println("Código HTTP de Google: " + e.getStatusCode());
-            System.err.println("Motivo exacto: " + e.getResponseBodyAsString());
-            System.err.println("=======================================");
-
-            return ResponseEntity.ok(Map.of(
-                    "respuesta", "Google ha denegado el acceso. Revisa la consola de IntelliJ.",
+            log.error("Gemini rechazó la petición — HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            return ResponseEntity.status(502).body(Map.of(
+                    "respuesta", "No se pudo conectar con el asistente. Inténtalo de nuevo.",
                     "accion", "NINGUNA"
             ));
         } catch (Exception e) {
-            System.err.println("=== ERROR INTERNO ===");
-            e.printStackTrace();
-            return ResponseEntity.ok(Map.of(
-                    "respuesta", "Fallo de conexión.",
+            log.error("Error interno en AssistantController", e);
+            return ResponseEntity.status(500).body(Map.of(
+                    "respuesta", "Error interno del servidor.",
                     "accion", "NINGUNA"
             ));
         }

@@ -29,7 +29,6 @@ public class ApplicationConfig {
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
     }
 
-    //
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();

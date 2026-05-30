@@ -21,50 +21,31 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
 
-    // --- REGISTRO ---
     public LoginResponse register(RegisterRequest request) {
-
         if (userRepository.existsByEmail(request.email())) {
             throw new IllegalArgumentException("El email ya está registrado");
         }
 
-        // 1. Crear el usuario
         User user = User.builder()
                 .email(request.email())
                 .fullName(request.fullName())
-
-                .password( passwordEncoder.encode(request.password()) )
+                .password(passwordEncoder.encode(request.password()))
                 .role(Role.USER)
                 .createdAt(java.time.Instant.now())
                 .build();
 
-        // 2: Manda el usuario a la base de datos
         userRepository.save(user);
-
-        // 3. Generar token
-        String token = jwtService.generateToken(user);
-        return new LoginResponse(token);
+        return new LoginResponse(jwtService.generateToken(user));
     }
 
-    // --- LOGIN ---
     public LoginResponse login(LoginRequest request) {
-
-        // 1. AUTENTICACIÓN AUTOMÁTICA
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.email(),
-                        request.password()
-                )
+                new UsernamePasswordAuthenticationToken(request.email(), request.password())
         );
 
-        // 2. Si pasamos la línea de arriba, es que el usuario es válido.
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        // 3. GENERAR EL TOKEN
-
-        String token = jwtService.generateToken(user);
-
-        return new LoginResponse(token);
+        return new LoginResponse(jwtService.generateToken(user));
     }
 }

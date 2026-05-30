@@ -1,6 +1,7 @@
 package com.alora.profile.dto;
 
 import com.alora.carelog.model.dto.CareLogDto;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import java.time.LocalDate;
 import java.util.List;
@@ -8,6 +9,8 @@ import java.util.List;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class PrivateProfileDto {
     private Long id;
+
+    @NotBlank(message = "El nombre completo es obligatorio")
     private String fullName;
     private String email;
     private LocalDate birthDate;

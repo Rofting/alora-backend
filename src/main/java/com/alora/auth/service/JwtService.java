@@ -21,57 +21,46 @@ public class JwtService {
     @Value("${app.jwt-secret}")
     private String secretKey;
 
-
-    // 1. Método Simple (El que estás llamando desde AuthService)
     public String generateToken(UserDetails userDetails) {
-        // Llamamos al método complejo enviándole un mapa vacío (sin datos extra)
         return generateToken(new HashMap<>(), userDetails);
     }
 
-    // 2. Método Complejo (Permite añadir "Claims" extra, como roles o IDs específicos)
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
         return Jwts.builder()
                 .setClaims(extraClaims)
                 .setSubject(userDetails.getUsername())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) // 24 horas
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) // 24h
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    // Método auxiliar para decodificar la clave secreta
     private Key getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
-        return Keys.hmacShaKeyFor(keyBytes);
+        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey));
     }
-    // Método para sacar el usuario (subject) del token
+
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
-    // Método para validar el token
     public boolean isTokenValid(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        // El token es válido si el usuario coincide Y no ha expirado
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        return extractUsername(token).equals(userDetails.getUsername()) && !isTokenExpired(token);
     }
 
-    // Método auxiliar para ver si ha expirado
     private boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
 
-    // Método auxiliar para sacar la fecha de expiración
     private Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
+
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
+        return claimsResolver.apply(extractAllClaims(token));
     }
+
     private Claims extractAllClaims(String token) {
-        return Jwts
-                .parserBuilder()
+        return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)

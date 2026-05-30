@@ -24,25 +24,16 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-
-                // 1. REGLAS DE ACCESO
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/public/**" , "/care/**", "/auth/**", "/images/**", "/error").permitAll()
+                        .requestMatchers("/public/**", "/care/**", "/auth/**", "/images/**", "/error").permitAll()
                         .anyRequest().authenticated()
                 )
-
-                // 2. POLÍTICA SIN SESIÓN (STATELESS)
                 .sessionManagement(sess -> sess
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-
-                // 3. ASIGNAR EL PROVEEDOR (Conexión con la BD)
                 .authenticationProvider(authenticationProvider)
-
-                // 4. METER TU FILTRO EN LA CADENA
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
-
 }

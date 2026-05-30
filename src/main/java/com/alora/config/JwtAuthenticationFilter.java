@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -32,43 +34,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String userEmail;
 
-        // 1. Si no hay cabecera o no es Bearer, dejamos pasar la petición tal cual (sin usuario logueado)
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
-            // 2. Intentamos leer el token
-            jwt = authHeader.substring(7);
-            userEmail = jwtService.extractUsername(jwt);
+            String jwt = authHeader.substring(7);
+            String userEmail = jwtService.extractUsername(jwt);
 
-            // 3. Si encontramos email y no estamos ya autenticados...
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+                UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
 
-                // 4. Si el token es válido, registramos al usuario en el sistema
                 if (jwtService.isTokenValid(jwt, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities()
+                            userDetails, null, userDetails.getAuthorities()
                     );
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
         } catch (Exception e) {
-            // 🚨 IMPORTANTE: Si algo falla (token mal formado, expirado, etc.), NO lanzamos error.
-            // Simplemente ignoramos el token y dejamos que la petición siga como "anónima".
-            // Si la ruta era privada, Spring Security devolverá 403 después. Si era pública, entrará.
-            System.out.println("⚠️ Token ignorado por error: " + e.getMessage());
+            // Token malformado o expirado: se ignora y la petición continúa como anónima.
+            // Si la ruta era privada, Spring Security devolverá 401 después.
+            log.warn("Token JWT ignorado: {}", e.getMessage());
         }
 
-        // 5. Continuamos la cadena SIEMPRE
         filterChain.doFilter(request, response);
     }
 }
