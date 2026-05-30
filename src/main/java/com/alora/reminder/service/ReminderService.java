@@ -1,11 +1,14 @@
 package com.alora.reminder.service;
 
+import com.alora.auth.model.User;
 import com.alora.exception.NotFoundException;
+import com.alora.profile.model.Profile;
 import com.alora.profile.repository.ProfileRepository;
 import com.alora.reminder.model.Reminder;
 import com.alora.reminder.model.dto.ReminderDto;
 import com.alora.reminder.repository.ReminderRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,50 +21,34 @@ public class ReminderService {
     private final ReminderRepository reminderRepository;
     private final ProfileRepository profileRepository;
 
-    // 1. Obtener todas las alarmas de un paciente
     public List<ReminderDto> getReminders(Long profileId) {
+        getOwnedProfile(profileId);
         return reminderRepository.findByProfileIdOrderByTimeAsc(profileId)
                 .stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
     }
 
-    // 2. Crear una nueva alarma
     public ReminderDto createReminder(Long profileId, ReminderDto dto) {
-        var profile = profileRepository.findById(profileId)
-                .orElseThrow(() -> new NotFoundException("Paciente no encontrado"));
-
+        Profile profile = getOwnedProfile(profileId);
         Reminder reminder = new Reminder();
         reminder.setTitle(dto.getTitle());
         reminder.setTime(dto.getTime());
         reminder.setActive(true);
-
-        // 🌟 NUEVO: Mapeamos los días de la semana de Android hacia la Base de Datos
-        if (dto.getDaysOfWeek() != null) {
-            reminder.setDaysOfWeek(dto.getDaysOfWeek());
-        } else {
-            reminder.setDaysOfWeek("TODOS"); // Valor por defecto de seguridad
-        }
-
+        reminder.setDaysOfWeek(dto.getDaysOfWeek() != null ? dto.getDaysOfWeek() : "TODOS");
         reminder.setProfile(profile);
-
-        Reminder saved = reminderRepository.save(reminder);
-        return mapToDto(saved);
+        return mapToDto(reminderRepository.save(reminder));
     }
 
-    // 3. Obtener un recordatorio por ID
     public ReminderDto getReminderById(Long profileId, Long reminderId) {
-        profileRepository.findById(profileId)
-                .orElseThrow(() -> new NotFoundException("Paciente no encontrado"));
+        getOwnedProfile(profileId);
         Reminder reminder = reminderRepository.findByIdAndProfile_Id(reminderId, profileId)
                 .orElseThrow(() -> new NotFoundException("Recordatorio no encontrado"));
         return mapToDto(reminder);
     }
 
-    // 4. Actualizar un recordatorio
     public ReminderDto updateReminder(Long profileId, Long reminderId, ReminderDto dto) {
-        profileRepository.findById(profileId)
-                .orElseThrow(() -> new NotFoundException("Paciente no encontrado"));
+        getOwnedProfile(profileId);
         Reminder reminder = reminderRepository.findByIdAndProfile_Id(reminderId, profileId)
                 .orElseThrow(() -> new NotFoundException("Recordatorio no encontrado"));
         if (dto.getTitle() != null) reminder.setTitle(dto.getTitle());
@@ -71,22 +58,30 @@ public class ReminderService {
         return mapToDto(reminderRepository.save(reminder));
     }
 
-    // 5. Borrar una alarma
-    public void deleteReminder(Long reminderId) {
-        reminderRepository.deleteById(reminderId);
+    public void deleteReminder(Long profileId, Long reminderId) {
+        getOwnedProfile(profileId);
+        Reminder reminder = reminderRepository.findByIdAndProfile_Id(reminderId, profileId)
+                .orElseThrow(() -> new NotFoundException("Recordatorio no encontrado"));
+        reminderRepository.delete(reminder);
     }
 
-    // Método ayudante para convertir de Base de Datos a DTO
+    private Profile getOwnedProfile(Long profileId) {
+        Profile profile = profileRepository.findById(profileId)
+                .orElseThrow(() -> new NotFoundException("Paciente no encontrado"));
+        User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!profile.getUser().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("No tienes permiso para gestionar este perfil");
+        }
+        return profile;
+    }
+
     private ReminderDto mapToDto(Reminder reminder) {
         ReminderDto dto = new ReminderDto();
         dto.setId(reminder.getId());
         dto.setTitle(reminder.getTitle());
         dto.setTime(reminder.getTime());
         dto.setActive(reminder.isActive());
-
-        // 🌟 NUEVO: Empaquetamos los días de la semana para que lleguen a la aplicación de Android
         dto.setDaysOfWeek(reminder.getDaysOfWeek());
-
         return dto;
     }
 }

@@ -19,19 +19,13 @@ public class AuthController {
 
     private final AuthService authService;
 
-    // --- ENDPOINT DE REGISTRO ---
     @PostMapping("/register")
-    public ResponseEntity<LoginResponse> register(
-            @Valid @RequestBody RegisterRequest request
-    ) {
+    public ResponseEntity<LoginResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.ok(authService.register(request));
     }
 
-    // --- ENDPOINT DE LOGIN ---
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(
-            @RequestBody LoginRequest request
-    ){
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
     }
 }

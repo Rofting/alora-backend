@@ -4,10 +4,10 @@ package com.alora.carelog.controller;
 import com.alora.carelog.model.dto.CareLogDto;
 import com.alora.carelog.service.CareLogService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/profiles")
@@ -17,8 +17,12 @@ public class CareLogController {
     private final CareLogService careLogService;
 
     @GetMapping("/{profileId}/logs")
-    public ResponseEntity<List<CareLogDto>> getLogs(@PathVariable Long profileId) {
-        return ResponseEntity.ok(careLogService.getLogs(profileId));
+    public ResponseEntity<Page<CareLogDto>> getLogs(
+            @PathVariable Long profileId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(careLogService.getLogs(profileId, PageRequest.of(page, size)));
     }
 
     @GetMapping("/{profileId}/logs/{logId}")

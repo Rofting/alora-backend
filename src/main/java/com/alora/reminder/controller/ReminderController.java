@@ -2,6 +2,7 @@ package com.alora.reminder.controller;
 
 import com.alora.reminder.model.dto.ReminderDto;
 import com.alora.reminder.service.ReminderService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +27,7 @@ public class ReminderController {
     }
 
     @PostMapping
-    public ResponseEntity<ReminderDto> createReminder(@PathVariable Long profileId, @RequestBody ReminderDto reminderDto) {
+    public ResponseEntity<ReminderDto> createReminder(@PathVariable Long profileId, @Valid @RequestBody ReminderDto reminderDto) {
         return ResponseEntity.ok(reminderService.createReminder(profileId, reminderDto));
     }
 
@@ -41,7 +42,7 @@ public class ReminderController {
 
     @DeleteMapping("/{reminderId}")
     public ResponseEntity<Void> deleteReminder(@PathVariable Long profileId, @PathVariable Long reminderId) {
-        reminderService.deleteReminder(reminderId);
+        reminderService.deleteReminder(profileId, reminderId);
         return ResponseEntity.noContent().build();
     }
 }

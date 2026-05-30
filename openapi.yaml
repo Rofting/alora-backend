@@ -140,6 +140,29 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  # ── ME ────────────────────────────────────────────────────
+  /api/me:
+    get:
+      tags: [Auth]
+      summary: Obtener el usuario autenticado
+      description: Devuelve los datos del cuidador cuyo JWT se envía en la cabecera.
+      responses:
+        '200':
+          description: Datos del usuario actual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummaryDto'
+              example:
+                id: 2
+                email: "cuidadora@ejemplo.com"
+                fullName: "María García"
+                role: "USER"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   # ── ADMIN ─────────────────────────────────────────────────
   /api/admin/users:
     get:
