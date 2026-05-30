@@ -20,14 +20,28 @@ public class ReminderController {
         return ResponseEntity.ok(reminderService.getReminders(profileId));
     }
 
+    @GetMapping("/{reminderId}")
+    public ResponseEntity<ReminderDto> getReminder(@PathVariable Long profileId, @PathVariable Long reminderId) {
+        return ResponseEntity.ok(reminderService.getReminderById(profileId, reminderId));
+    }
+
     @PostMapping
     public ResponseEntity<ReminderDto> createReminder(@PathVariable Long profileId, @RequestBody ReminderDto reminderDto) {
         return ResponseEntity.ok(reminderService.createReminder(profileId, reminderDto));
     }
 
+    @PutMapping("/{reminderId}")
+    public ResponseEntity<ReminderDto> updateReminder(
+            @PathVariable Long profileId,
+            @PathVariable Long reminderId,
+            @RequestBody ReminderDto reminderDto
+    ) {
+        return ResponseEntity.ok(reminderService.updateReminder(profileId, reminderId, reminderDto));
+    }
+
     @DeleteMapping("/{reminderId}")
     public ResponseEntity<Void> deleteReminder(@PathVariable Long profileId, @PathVariable Long reminderId) {
         reminderService.deleteReminder(reminderId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 }

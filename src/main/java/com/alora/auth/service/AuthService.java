@@ -24,6 +24,10 @@ public class AuthService {
     // --- REGISTRO ---
     public LoginResponse register(RegisterRequest request) {
 
+        if (userRepository.existsByEmail(request.email())) {
+            throw new IllegalArgumentException("El email ya está registrado");
+        }
+
         // 1. Crear el usuario
         User user = User.builder()
                 .email(request.email())

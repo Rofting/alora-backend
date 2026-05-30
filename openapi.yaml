@@ -1,0 +1,1413 @@
+openapi: 3.0.3
+
+info:
+  title: Alora Backend API
+  description: >
+    API REST del backend de Alora, una plataforma de gestión de cuidados geriátricos.
+    Gestiona autenticación JWT, perfiles de pacientes, registros de cuidado,
+    recordatorios y un asistente IA basado en Gemini.
+  version: 1.0.0
+  contact:
+    name: Jose Rodriguez
+
+servers:
+  - url: http://localhost:8080
+    description: Servidor de desarrollo local
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Auth
+    description: Registro e inicio de sesión — rutas públicas, sin token
+  - name: Admin
+    description: Operaciones exclusivas para el rol ADMIN
+  - name: Profiles
+    description: Gestión CRUD de perfiles de pacientes — requiere autenticación
+  - name: Care Logs
+    description: Registro histórico de cuidados por perfil — requiere autenticación
+  - name: Reminders
+    description: Recordatorios y alarmas por perfil — requiere autenticación
+  - name: Public Profile
+    description: Consulta pública de perfil mediante token QR — sin autenticación
+  - name: AI Assistant
+    description: Asistente IA (Gemini) que clasifica mensajes del cuidador
+
+# ════════════════════════════════════════════════════════════
+# PATHS
+# ════════════════════════════════════════════════════════════
+paths:
+
+  # ── AUTH ──────────────────────────────────────────────────
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Registrar un nuevo cuidador
+      description: >
+        Crea una cuenta nueva con rol USER y devuelve un JWT listo para usar.
+        El email debe ser único; la contraseña mínima es 6 caracteres.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: "cuidadora@ejemplo.com"
+              password: "segura123"
+              fullName: "María García"
+      responses:
+        '200':
+          description: Registro exitoso — devuelve JWT de 24 horas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjdWlkYWRvcmFAZWplbXBsby5jb20iLCJpYXQiOjE3MDUzMTIyMDB9.sig"
+        '400':
+          description: Email duplicado o campos inválidos
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                emailDuplicado:
+                  summary: El email ya existe
+                  value:
+                    timestamp: "2024-01-15T10:30:00Z"
+                    status: 400
+                    error: "Bad Request"
+                    message: "El email ya está registrado"
+                    path: "/auth/register"
+                camposInvalidos:
+                  summary: Datos que no superan la validación
+                  value:
+                    timestamp: "2024-01-15T10:30:00Z"
+                    status: 400
+                    error: "Validation Error"
+                    message: "Los datos enviados no son válidos"
+                    path: "/auth/register"
+                    validationErrors:
+                      email: "Debe ser un email valido"
+                      password: "La contraseña debe tener al menos 6 caracteres"
+                      fullName: "El nombre es obligatorio"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesión
+      description: >
+        Autentica al usuario con email y contraseña.
+        Devuelve un JWT de 24 horas que debe enviarse en el header
+        `Authorization: Bearer <token>` en las rutas protegidas.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: "cuidadora@ejemplo.com"
+              password: "segura123"
+      responses:
+        '200':
+          description: Login exitoso — devuelve JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Credenciales incorrectas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                timestamp: "2024-01-15T10:30:00Z"
+                status: 401
+                error: "Unauthorized"
+                message: "Email o contraseña incorrectos"
+                path: "/auth/login"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ── ADMIN ─────────────────────────────────────────────────
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: Listar todos los usuarios del sistema
+      description: >
+        Devuelve la lista de cuentas registradas sin exponer contraseñas.
+        Requiere rol **ADMIN** — un usuario con rol USER recibirá 403.
+      responses:
+        '200':
+          description: Lista de usuarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSummaryDto'
+              example:
+                - id: 1
+                  email: "admin@alora.com"
+                  fullName: "Admin Principal"
+                  role: "ADMIN"
+                - id: 2
+                  email: "cuidadora@ejemplo.com"
+                  fullName: "María García"
+                  role: "USER"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/admin/users/{id}:
+    get:
+      tags: [Admin]
+      summary: Obtener un usuario por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Usuario encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummaryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags: [Admin]
+      summary: Eliminar un usuario
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '204':
+          description: Usuario eliminado correctamente
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/admin/users/{id}/role:
+    patch:
+      tags: [Admin]
+      summary: Cambiar el rol de un usuario
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoleRequest'
+            example:
+              role: "ADMIN"
+      responses:
+        '200':
+          description: Rol actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummaryDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ── PROFILES ──────────────────────────────────────────────
+  /api/profiles:
+    get:
+      tags: [Profiles]
+      summary: Listar mis perfiles de pacientes
+      description: Devuelve únicamente los perfiles creados por el usuario autenticado.
+      responses:
+        '200':
+          description: Lista de perfiles del cuidador
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PrivateProfileDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags: [Profiles]
+      summary: Crear un nuevo perfil de paciente
+      description: >
+        Crea la ficha de un paciente. El sistema genera automáticamente un
+        `qrToken` único. El `pinCode` se usa para proteger el acceso público.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileRequest'
+            example:
+              fullName: "Juan Pérez López"
+              email: "juan@ejemplo.com"
+              birthDate: "1945-03-15"
+              gender: "Masculino"
+              medicalConditions: "Diabetes tipo 2, Hipertensión arterial"
+              allergies: "Penicilina"
+              medications: "Metformina 850mg, Enalapril 10mg"
+              approxAddress: "Calle Mayor 10, 2º B"
+              city: "Madrid"
+              emergencyContactName: "Ana Pérez"
+              emergencyContactPhone: "600123456"
+              emergencyContactEmail: "ana@ejemplo.com"
+              relationship: "Hija"
+              pinCode: "1234"
+      responses:
+        '200':
+          description: Perfil creado con `qrToken` generado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivateProfileDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/profiles/{id}:
+    get:
+      tags: [Profiles]
+      summary: Obtener un perfil por ID
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+      responses:
+        '200':
+          description: Datos del perfil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivateProfileDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags: [Profiles]
+      summary: Actualizar un perfil de paciente
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileRequest'
+      responses:
+        '200':
+          description: Perfil actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivateProfileDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags: [Profiles]
+      summary: Eliminar un perfil de paciente
+      description: Elimina la ficha del paciente y todos sus logs y recordatorios asociados (CASCADE).
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+      responses:
+        '204':
+          description: Perfil eliminado correctamente
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/profiles/{id}/photo:
+    post:
+      tags: [Profiles]
+      summary: Subir foto de perfil
+      description: Sube una imagen (JPEG/PNG) para el paciente. Devuelve el nombre del archivo guardado.
+      parameters:
+        - $ref: '#/components/parameters/ProfileId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Imagen del paciente en formato JPEG o PNG
+      responses:
+        '200':
+          description: Foto subida correctamente — devuelve el nombre del archivo
+          content:
+            application/json:
+              schema:
+                type: string
+              example: "Foto subida con éxito: a3f8b2c1.jpg"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ── CARE LOGS ─────────────────────────────────────────────
+  /api/profiles/{profileId}/logs:
+    get:
+      tags: [Care Logs]
+      summary: Obtener registros de cuidado de un perfil
+      description: >
+        Devuelve el historial de cuidados ordenado del más reciente al más antiguo.
+        Solo el dueño del perfil puede acceder a sus registros.
+      parameters:
+        - $ref: '#/components/parameters/ProfileIdPath'
+      responses:
+        '200':
+          description: Lista de registros ordenada por fecha descendente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CareLogDto'
+              example:
+                - id: 10
+                  profileId: 5
+                  logType: "MEDICACION"
+                  note: "Tomó ibuprofeno 400mg con el desayuno"
+                  createdAt: "2024-01-15T09:00:00"
+                - id: 9
+                  profileId: 5
+                  logType: "COMIDA"
+                  note: "Desayunó tostadas con aceite"
+                  createdAt: "2024-01-15T08:30:00"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags: [Care Logs]
+      summary: Crear un nuevo registro de cuidado
+      description: >
+        Añade un evento al historial del paciente.
+        El campo `id` en el body es ignorado — se asigna siempre uno nuevo.
+      parameters:
+        - $ref: '#/components/parameters/ProfileIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CareLogRequest'
+            example:
+              logType: "MEDICACION"
+              note: "Se administró Metformina 850mg con el desayuno"
+      responses:
+        '200':
+          description: Registro de cuidado creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CareLogDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/profiles/{profileId}/logs/{logId}:
+    get:
+      tags: [Care Logs]
+      summary: Obtener un registro de cuidado por ID
+      parameters:
+        - $ref: '#/components/parameters/ProfileIdPath'
+        - name: logId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Registro encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CareLogDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags: [Care Logs]
+      summary: Actualizar un registro de cuidado
+      description: Solo se actualizan los campos `logType` y `note` — el resto es inmutable.
+      parameters:
+        - $ref: '#/components/parameters/ProfileIdPath'
+        - name: logId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CareLogRequest'
+            example:
+              logType: "MEDICACION"
+              note: "Tomó ibuprofeno 600mg (dosis corregida)"
+      responses:
+        '200':
+          description: Registro actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CareLogDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags: [Care Logs]
+      summary: Eliminar un registro de cuidado
+      parameters:
+        - $ref: '#/components/parameters/ProfileIdPath'
+        - name: logId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '204':
+          description: Registro eliminado correctamente
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ── REMINDERS ─────────────────────────────────────────────
+  /api/profiles/{profileId}/reminders:
+    get:
+      tags: [Reminders]
+      summary: Obtener recordatorios de un perfil
+      description: Devuelve los recordatorios ordenados por hora ascendente (primero el más temprano).
+      parameters:
+        - $ref: '#/components/parameters/ProfileIdPath'
+      responses:
+        '200':
+          description: Lista de recordatorios ordenada por hora
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReminderDto'
+              example:
+                - id: 3
+                  title: "Pastilla tensión"
+                  time: "08:30:00"
+                  isActive: true
+                  daysOfWeek: "LUNES,MIERCOLES,VIERNES"
+                - id: 4
+                  title: "Insulina"
+                  time: "20:00:00"
+                  isActive: true
+                  daysOfWeek: "TODOS"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags: [Reminders]
+      summary: Crear un recordatorio
+      description: >
+        Si `daysOfWeek` no se especifica, se asigna "TODOS" por defecto.
+        Los días se pasan como una cadena separada por comas (ej. "LUNES,MARTES").
+      parameters:
+        - $ref: '#/components/parameters/ProfileIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReminderRequest'
+            example:
+              title: "Pastilla tensión"
+              time: "08:30:00"
+              daysOfWeek: "LUNES,MIERCOLES,VIERNES"
+      responses:
+        '200':
+          description: Recordatorio creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/profiles/{profileId}/reminders/{reminderId}:
+    get:
+      tags: [Reminders]
+      summary: Obtener un recordatorio por ID
+      parameters:
+        - $ref: '#/components/parameters/ProfileIdPath'
+        - name: reminderId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Recordatorio encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags: [Reminders]
+      summary: Actualizar un recordatorio
+      parameters:
+        - $ref: '#/components/parameters/ProfileIdPath'
+        - name: reminderId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReminderRequest'
+            example:
+              title: "Pastilla tensión (nueva dosis)"
+              time: "09:00:00"
+              daysOfWeek: "TODOS"
+      responses:
+        '200':
+          description: Recordatorio actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags: [Reminders]
+      summary: Eliminar un recordatorio
+      parameters:
+        - $ref: '#/components/parameters/ProfileIdPath'
+        - name: reminderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID del recordatorio a eliminar
+          example: 3
+      responses:
+        '204':
+          description: Recordatorio eliminado correctamente
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ── PUBLIC PROFILE ────────────────────────────────────────
+  /public/profile/{qrToken}:
+    get:
+      tags: [Public Profile]
+      summary: Obtener datos públicos del perfil mediante token QR
+      description: >
+        Endpoint sin autenticación, accesible al escanear el QR del paciente.
+        Devuelve solo los campos no sensibles: nombre, ciudad, condiciones médicas,
+        alergias y contacto de emergencia.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/QrToken'
+      responses:
+        '200':
+          description: Datos públicos del perfil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicProfileDto'
+              example:
+                fullName: "Juan Pérez López"
+                approxAddress: "Calle Mayor 10, Madrid"
+                city: "Madrid"
+                medicalConditions: "Diabetes tipo 2, Hipertensión arterial"
+                allergies: "Penicilina"
+                emergencyContactName: "Ana Pérez"
+                emergencyContactPhone: "600123456"
+                photoUrl: "/images/a3f8b2c1.jpg"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /public/profile/{qrToken}/unlock:
+    post:
+      tags: [Public Profile]
+      summary: Desbloquear datos privados con PIN
+      description: >
+        Valida el PIN del perfil y devuelve los datos completos del paciente,
+        incluyendo medicación, registros recientes y datos de contacto privados.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/QrToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnlockRequest'
+            example:
+              pin: "1234"
+      responses:
+        '200':
+          description: PIN correcto — devuelve datos privados completos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivateProfileDto'
+        '400':
+          description: PIN incorrecto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                timestamp: "2024-01-15T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "PIN incorrecto"
+                path: "/public/profile/abc123/unlock"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /public/profile/{qrToken}/qr-image:
+    get:
+      tags: [Public Profile]
+      summary: Obtener la imagen PNG del código QR
+      description: Genera y devuelve la imagen del QR que apunta al perfil público del paciente.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/QrToken'
+      responses:
+        '200':
+          description: Imagen PNG del código QR (300 × 300 px)
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ── AI ASSISTANT ──────────────────────────────────────────
+  /api/profiles/{profileId}/chat:
+    post:
+      tags: [AI Assistant]
+      summary: Enviar mensaje al asistente IA Alora
+      description: |
+        Analiza el mensaje del cuidador con Gemini 2.5 Flash y devuelve:
+        - Una respuesta empática en lenguaje natural (máx. 2 líneas).
+        - Una acción técnica clasificada:
+          | Acción | Cuándo se produce |
+          |---|---|
+          | `COMPLETADO` | El cuidador confirma que ya realizó una tarea |
+          | `POSPONER` | El cuidador pide aplazar un recordatorio |
+          | `NINGUNA` | Saludo, pregunta general o intención no reconocida |
+      parameters:
+        - $ref: '#/components/parameters/ProfileIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+            example:
+              mensaje: "Ya le di la pastilla de las 8"
+      responses:
+        '200':
+          description: Respuesta del asistente IA (también en caso de error interno de Gemini)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+              examples:
+                completado:
+                  summary: Tarea marcada como completada
+                  value:
+                    respuesta: "¡Perfecto! Has hecho un trabajo estupendo recordando la medicación. ¡Sigue así!"
+                    accion: "COMPLETADO"
+                posponer:
+                  summary: Solicitud de aplazar recordatorio
+                  value:
+                    respuesta: "Entendido, te recuerdo más tarde. Tómate un descanso."
+                    accion: "POSPONER"
+                ninguna:
+                  summary: Saludo o consulta general
+                  value:
+                    respuesta: "¡Hola! Estoy aquí para ayudarte. ¿En qué puedo asistirte hoy?"
+                    accion: "NINGUNA"
+        '400':
+          description: Mensaje vacío o nulo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+              example:
+                respuesta: "Mensaje vacío."
+                accion: "NINGUNA"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+# ════════════════════════════════════════════════════════════
+# COMPONENTS
+# ════════════════════════════════════════════════════════════
+components:
+
+  # ── SECURITY ──────────────────────────────────────────────
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Token JWT obtenido en `/auth/login` o `/auth/register`.
+        Enviar como: `Authorization: Bearer <token>`
+
+  # ── PARAMETERS ────────────────────────────────────────────
+  parameters:
+    ProfileId:
+      name: id
+      in: path
+      required: true
+      description: ID del perfil de paciente
+      schema:
+        type: integer
+        format: int64
+        example: 5
+
+    ProfileIdPath:
+      name: profileId
+      in: path
+      required: true
+      description: ID del perfil de paciente
+      schema:
+        type: integer
+        format: int64
+        example: 5
+
+    QrToken:
+      name: qrToken
+      in: path
+      required: true
+      description: Token único generado al crear el perfil (aparece en el QR)
+      schema:
+        type: string
+        example: "a1b2c3d4e5f6g7h8i9j0"
+
+  # ── REUSABLE RESPONSES ────────────────────────────────────
+  responses:
+    Unauthorized:
+      description: Token JWT ausente, expirado o inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            timestamp: "2024-01-15T10:30:00Z"
+            status: 401
+            error: "Unauthorized"
+            message: "Full authentication is required to access this resource"
+            path: "/api/profiles"
+
+    Forbidden:
+      description: El usuario autenticado no tiene permisos suficientes (rol incorrecto o recurso ajeno)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            timestamp: "2024-01-15T10:30:00Z"
+            status: 403
+            error: "Forbidden"
+            message: "Access Denied"
+            path: "/api/admin/users"
+
+    NotFound:
+      description: El recurso solicitado no existe
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            timestamp: "2024-01-15T10:30:00Z"
+            status: 404
+            error: "Not Found"
+            message: "Perfil no encontrado"
+            path: "/api/profiles/99"
+
+    BadRequest:
+      description: Solicitud mal formada o parámetros inválidos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            timestamp: "2024-01-15T10:30:00Z"
+            status: 400
+            error: "Bad Request"
+            message: "El archivo enviado no es una imagen válida"
+            path: "/api/profiles/5/photo"
+
+    ValidationError:
+      description: Uno o más campos no superan las restricciones de validación
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          example:
+            timestamp: "2024-01-15T10:30:00Z"
+            status: 400
+            error: "Validation Error"
+            message: "Los datos enviados no son válidos"
+            path: "/auth/register"
+            validationErrors:
+              email: "Debe ser un email valido"
+              password: "La contraseña debe tener al menos 6 caracteres"
+
+    InternalServerError:
+      description: Error interno inesperado del servidor
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            timestamp: "2024-01-15T10:30:00Z"
+            status: 500
+            error: "Internal Server Error"
+            message: "An unexpected error occurred"
+            path: "/api/profiles"
+
+  # ── SCHEMAS ───────────────────────────────────────────────
+  schemas:
+
+    # ·· Auth ··············································
+    RegisterRequest:
+      type: object
+      required: [email, password, fullName]
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email único del cuidador
+          example: "cuidadora@ejemplo.com"
+        password:
+          type: string
+          format: password
+          minLength: 6
+          description: Contraseña (mínimo 6 caracteres)
+          example: "segura123"
+        fullName:
+          type: string
+          description: Nombre completo del cuidador
+          example: "María García"
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: "cuidadora@ejemplo.com"
+        password:
+          type: string
+          format: password
+          example: "segura123"
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT de autenticación con validez de 24 horas
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjdWlkYWRvcmFAZWplbXBsby5jb20ifQ.sig"
+
+    # ·· Admin ·············································
+    UserSummaryDto:
+      type: object
+      description: Representación segura de un usuario (sin contraseña)
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+          example: 1
+        email:
+          type: string
+          format: email
+          example: "cuidadora@ejemplo.com"
+        fullName:
+          type: string
+          example: "María García"
+        role:
+          type: string
+          enum: [USER, ADMIN]
+          example: "USER"
+
+    # ·· Profiles ··········································
+    ProfileRequest:
+      type: object
+      description: Cuerpo para crear o actualizar un perfil de paciente
+      properties:
+        fullName:
+          type: string
+          example: "Juan Pérez López"
+        email:
+          type: string
+          format: email
+          example: "juan@ejemplo.com"
+        birthDate:
+          type: string
+          format: date
+          example: "1945-03-15"
+        gender:
+          type: string
+          example: "Masculino"
+        medicalConditions:
+          type: string
+          example: "Diabetes tipo 2, Hipertensión arterial"
+        allergies:
+          type: string
+          example: "Penicilina"
+        medications:
+          type: string
+          example: "Metformina 850mg, Enalapril 10mg"
+        approxAddress:
+          type: string
+          example: "Calle Mayor 10, 2º B"
+        city:
+          type: string
+          example: "Madrid"
+        emergencyContactName:
+          type: string
+          example: "Ana Pérez"
+        emergencyContactPhone:
+          type: string
+          example: "600123456"
+        emergencyContactEmail:
+          type: string
+          format: email
+          example: "ana@ejemplo.com"
+        relationship:
+          type: string
+          example: "Hija"
+        pinCode:
+          type: string
+          description: PIN de 4 dígitos para proteger el acceso público
+          example: "1234"
+
+    PublicProfileDto:
+      type: object
+      description: Datos del paciente visibles sin necesidad de PIN
+      properties:
+        fullName:
+          type: string
+          example: "Juan Pérez López"
+        approxAddress:
+          type: string
+          example: "Calle Mayor 10, Madrid"
+        city:
+          type: string
+          example: "Madrid"
+        medicalConditions:
+          type: string
+          example: "Diabetes tipo 2, Hipertensión arterial"
+        allergies:
+          type: string
+          example: "Penicilina"
+        emergencyContactName:
+          type: string
+          example: "Ana Pérez"
+        emergencyContactPhone:
+          type: string
+          example: "600123456"
+        photoUrl:
+          type: string
+          format: uri
+          example: "/images/a3f8b2c1.jpg"
+
+    PrivateProfileDto:
+      type: object
+      description: Ficha completa del paciente (requiere autenticación JWT o PIN correcto)
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+          example: 5
+        fullName:
+          type: string
+          example: "Juan Pérez López"
+        email:
+          type: string
+          format: email
+          example: "juan@ejemplo.com"
+        birthDate:
+          type: string
+          format: date
+          example: "1945-03-15"
+        gender:
+          type: string
+          example: "Masculino"
+        medicalConditions:
+          type: string
+          example: "Diabetes tipo 2, Hipertensión arterial"
+        allergies:
+          type: string
+          example: "Penicilina"
+        medications:
+          type: string
+          example: "Metformina 850mg, Enalapril 10mg"
+        approxAddress:
+          type: string
+          example: "Calle Mayor 10, 2º B"
+        city:
+          type: string
+          example: "Madrid"
+        emergencyContactName:
+          type: string
+          example: "Ana Pérez"
+        emergencyContactPhone:
+          type: string
+          example: "600123456"
+        emergencyContactEmail:
+          type: string
+          format: email
+          example: "ana@ejemplo.com"
+        relationship:
+          type: string
+          example: "Hija"
+        qrToken:
+          type: string
+          readOnly: true
+          description: Token único generado automáticamente al crear el perfil
+          example: "a1b2c3d4e5f6g7h8i9j0"
+        pinCode:
+          type: string
+          description: PIN de 4 dígitos para el acceso público mediante QR
+          example: "1234"
+        photoUrl:
+          type: string
+          format: uri
+          readOnly: true
+          example: "/images/a3f8b2c1.jpg"
+        recentLogs:
+          type: array
+          readOnly: true
+          description: Últimos registros de cuidado del paciente
+          items:
+            $ref: '#/components/schemas/CareLogDto'
+
+    # ·· Care Logs ·········································
+    CareLogRequest:
+      type: object
+      required: [logType]
+      description: Cuerpo para crear un registro de cuidado (el campo `id` es ignorado)
+      properties:
+        logType:
+          type: string
+          description: Categoría del evento registrado
+          enum: [MEDICACION, SINTOMAS, COMIDA, HIGIENE, OTRO]
+          example: "MEDICACION"
+        note:
+          type: string
+          description: Descripción libre del evento
+          example: "Tomó ibuprofeno 400mg con el desayuno"
+
+    CareLogDto:
+      type: object
+      description: Registro de cuidado persistido
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+          example: 42
+        profileId:
+          type: integer
+          format: int64
+          readOnly: true
+          example: 5
+        logType:
+          type: string
+          example: "MEDICACION"
+        note:
+          type: string
+          example: "Tomó ibuprofeno 400mg con el desayuno"
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2024-01-15T09:00:00"
+
+    # ·· Reminders ·········································
+    ReminderRequest:
+      type: object
+      required: [title, time]
+      description: Cuerpo para crear un recordatorio
+      properties:
+        title:
+          type: string
+          example: "Pastilla tensión"
+        time:
+          type: string
+          description: Hora del recordatorio en formato HH:mm:ss
+          example: "08:30:00"
+        daysOfWeek:
+          type: string
+          description: >
+            Días de la semana separados por coma en los que se activa el recordatorio.
+            Si se omite, se activa "TODOS" los días.
+            Valores válidos: LUNES, MARTES, MIERCOLES, JUEVES, VIERNES, SABADO, DOMINGO, TODOS
+          example: "LUNES,MIERCOLES,VIERNES"
+
+    ReminderDto:
+      type: object
+      description: Recordatorio persistido
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+          example: 7
+        title:
+          type: string
+          example: "Pastilla tensión"
+        time:
+          type: string
+          description: Hora en formato HH:mm:ss
+          example: "08:30:00"
+        isActive:
+          type: boolean
+          description: Indica si el recordatorio está habilitado
+          example: true
+        daysOfWeek:
+          type: string
+          description: Días activos separados por coma, o "TODOS"
+          example: "LUNES,MIERCOLES,VIERNES"
+
+    # ·· Public ············································
+    UnlockRequest:
+      type: object
+      required: [pin]
+      properties:
+        pin:
+          type: string
+          description: PIN de 4 dígitos configurado en el perfil
+          example: "1234"
+
+    # ·· AI Assistant ······································
+    ChatRequest:
+      type: object
+      required: [mensaje]
+      properties:
+        mensaje:
+          type: string
+          description: Mensaje libre del cuidador en lenguaje natural
+          example: "Ya le di la pastilla de las 8"
+
+    ChatResponse:
+      type: object
+      properties:
+        respuesta:
+          type: string
+          description: Respuesta empática generada por el asistente IA
+          example: "¡Perfecto! Has hecho un trabajo estupendo recordando la medicación. ¡Sigue así!"
+        accion:
+          type: string
+          description: Acción técnica detectada por el asistente
+          enum: [COMPLETADO, POSPONER, NINGUNA]
+          example: "COMPLETADO"
+
+    # ·· Admin ·············································
+    UpdateRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [USER, ADMIN]
+          description: Nuevo rol a asignar al usuario
+          example: "ADMIN"
+
+    # ·· Errors ············································
+    ErrorResponse:
+      type: object
+      description: Formato estándar de error devuelto por ApiExceptionHandler
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Instante UTC en que ocurrió el error
+          example: "2024-01-15T10:30:00Z"
+        status:
+          type: integer
+          description: Código HTTP del error
+          example: 400
+        error:
+          type: string
+          description: Nombre corto del error HTTP
+          example: "Bad Request"
+        message:
+          type: string
+          description: Descripción legible del error
+          example: "El email ya está registrado"
+        path:
+          type: string
+          description: Ruta del endpoint que generó el error
+          example: "/auth/register"
+
+    ValidationErrorResponse:
+      type: object
+      description: Error 400 con detalle de qué campos fallaron la validación
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: "Validation Error"
+        message:
+          type: string
+          example: "Los datos enviados no son válidos"
+        path:
+          type: string
+          example: "/auth/register"
+        validationErrors:
+          type: object
+          description: Mapa campo → mensaje de error de validación
+          additionalProperties:
+            type: string
+          example:
+            email: "Debe ser un email valido"
+            password: "La contraseña debe tener al menos 6 caracteres"
+            fullName: "El nombre es obligatorio"

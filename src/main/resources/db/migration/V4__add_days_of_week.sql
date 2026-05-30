@@ -1,0 +1,1 @@
+ALTER TABLE reminders ADD COLUMN days_of_week VARCHAR(255) DEFAULT 'TODOS';
