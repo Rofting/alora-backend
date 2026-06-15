@@ -12,6 +12,7 @@ import com.alora.profile.model.Profile;
 import com.alora.profile.repository.ProfileRepository;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -28,11 +29,13 @@ public class ProfileService {
     private final ProfileRepository repo;
     private final ModelMapper mapper;
     private final CareLogRepository careLogRepo;
+    private final PasswordEncoder passwordEncoder;
 
-    public ProfileService(ProfileRepository repo, ModelMapper mapper, CareLogRepository careLogRepo) {
+    public ProfileService(ProfileRepository repo, ModelMapper mapper, CareLogRepository careLogRepo, PasswordEncoder passwordEncoder) {
         this.repo = repo;
         this.mapper = mapper;
         this.careLogRepo = careLogRepo;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public PublicProfileDto getPublicByQrToken(String qrToken) {
@@ -45,7 +48,7 @@ public class ProfileService {
         Profile p = repo.findByQrToken(qrToken)
                 .orElseThrow(() -> new NotFoundException("QR token not found"));
 
-        if (!pin.equals(p.getPinCode())) {
+        if (p.getPinCode() == null || !passwordEncoder.matches(pin, p.getPinCode())) {
             throw new InvalidPinException("Invalid PIN");
         }
 
@@ -74,6 +77,9 @@ public class ProfileService {
         User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Profile profile = mapper.map(dto, Profile.class);
         profile.setQrToken(UUID.randomUUID().toString());
+        if (dto.getPinCode() != null && !dto.getPinCode().isBlank()) {
+            profile.setPinCode(passwordEncoder.encode(dto.getPinCode()));
+        }
         profile.setUser(currentUser);
         return mapper.map(repo.save(profile), PrivateProfileDto.class);
     }
@@ -98,6 +104,8 @@ public class ProfileService {
         Long savedId = profile.getId();
         String savedQrToken = profile.getQrToken();
         String savedPhotoUrl = profile.getPhotoUrl();
+        String savedHashedPin = profile.getPinCode();
+        String incomingPin = dto.getPinCode();
 
         mapper.map(dto, profile);
 
@@ -105,6 +113,11 @@ public class ProfileService {
         profile.setQrToken(savedQrToken);
         profile.setPhotoUrl(savedPhotoUrl);
         profile.setUser(currentUser);
+        if (incomingPin != null && !incomingPin.isBlank()) {
+            profile.setPinCode(passwordEncoder.encode(incomingPin));
+        } else {
+            profile.setPinCode(savedHashedPin);
+        }
 
         return mapper.map(repo.save(profile), PrivateProfileDto.class);
     }

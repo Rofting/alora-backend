@@ -7,8 +7,6 @@ public class PublicProfileDto {
     private String fullName;
     private String approxAddress;
     private String city;
-    private String medicalConditions;
-    private String allergies;
     private String emergencyContactName;
     private String emergencyContactPhone;
     private String photoUrl;

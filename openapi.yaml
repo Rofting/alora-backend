@@ -6,7 +6,7 @@ info:
     API REST del backend de Alora, una plataforma de gestión de cuidados geriátricos.
     Gestiona autenticación JWT, perfiles de pacientes, registros de cuidado,
     recordatorios y un asistente IA basado en Gemini.
-  version: 1.0.0
+  version: 1.1.0
   contact:
     name: Jose Rodriguez
 
@@ -740,6 +740,33 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   # ── PUBLIC PROFILE ────────────────────────────────────────
+  /api/profiles/{profileId}/reminders/{reminderId}/speak:
+    get:
+      tags: [Reminders, AI Assistant]
+      summary: Generar el aviso de voz de un recordatorio con IA
+      description: >
+        Devuelve un mensaje cálido y natural (máximo 2 frases) generado por Gemini
+        para que el cliente lo verbalice con TTS al sonar la alarma. Si la IA no está
+        disponible, responde con un texto de respaldo determinista.
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: reminderId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Texto del aviso de voz
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeakResponse'
+        '404':
+          description: Perfil o recordatorio no encontrado
+
   /public/profile/{qrToken}:
     get:
       tags: [Public Profile]
@@ -1146,7 +1173,10 @@ components:
 
     PublicProfileDto:
       type: object
-      description: Datos del paciente visibles sin necesidad de PIN
+      description: >
+        Nivel 1 (público) de la Tarjeta Vital: identificación y contacto de emergencia.
+        Los datos médicos (alergias, condiciones, medicación) NUNCA se exponen en este
+        nivel; requieren el desbloqueo con PIN (/unlock).
       properties:
         fullName:
           type: string
@@ -1157,12 +1187,6 @@ components:
         city:
           type: string
           example: "Madrid"
-        medicalConditions:
-          type: string
-          example: "Diabetes tipo 2, Hipertensión arterial"
-        allergies:
-          type: string
-          example: "Penicilina"
         emergencyContactName:
           type: string
           example: "Ana Pérez"
@@ -1345,14 +1369,32 @@ components:
           example: "1234"
 
     # ·· AI Assistant ······································
+    SpeakResponse:
+      type: object
+      properties:
+        texto:
+          type: string
+          description: Mensaje de voz generado por la IA para el recordatorio
+          example: "Hola Juan, son las diez de la mañana y toca tu pastilla de la tensión. ¿Ya te la has tomado?"
+
     ChatRequest:
       type: object
       required: [mensaje]
       properties:
         mensaje:
           type: string
-          description: Mensaje libre del cuidador en lenguaje natural
-          example: "Ya le di la pastilla de las 8"
+          description: Mensaje libre del paciente o cuidador en lenguaje natural
+          example: "Ya me tomé la pastilla"
+        contexto:
+          type: string
+          description: >
+            Contexto opcional que el cliente inyecta para mejorar la comprensión:
+            fecha y hora actuales, pautas médicas activas, alarma en foco e idioma.
+          example: "Fecha y hora actual: viernes 12 de junio de 2026, 17:36\nPautas médicas activas:\n- 'Pastilla tensión' a las 17:35 [TODOS]\nAlarma en foco: Pastilla tensión"
+        historial:
+          type: string
+          description: Últimos turnos de la conversación (memoria del asistente)
+          example: "Paciente: hola\nAlora: Hola, ¿en qué puedo ayudarte?"
 
     ChatResponse:
       type: object
@@ -1363,9 +1405,11 @@ components:
           example: "¡Perfecto! Has hecho un trabajo estupendo recordando la medicación. ¡Sigue así!"
         accion:
           type: string
-          description: Acción técnica detectada por el asistente
-          enum: [COMPLETADO, POSPONER, NINGUNA]
-          example: "COMPLETADO"
+          description: >
+            Acción técnica detectada por el asistente. Valores: COMPLETADO, POSPONER,
+            NINGUNA, o CREAR_RECORDATORIO:Título;HH:MM:00;DIAS (DIAS = TODOS o lista
+            separada por comas, p. ej. LUNES,MIERCOLES).
+          example: "CREAR_RECORDATORIO:Pastilla tensión;10:00:00;TODOS"
 
     # ·· Admin ·············································
     UpdateRoleRequest:

@@ -1,76 +1,150 @@
-<div align="center">
+# Alora Backend
 
-#  Alora Backend API
+API REST del sistema **Alora**, una plataforma de gestión de cuidados geriátricos.
+Forma parte de un proyecto multiplataforma compuesto por:
 
-**El ecosistema inteligente para el cuidado de personas dependientes.**
-
-[![Java 21](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://www.java.com/)
-[![Spring Boot 3](https://img.shields.io/badge/Spring_Boot-3.x-6DB33F?style=for-the-badge&logo=spring&logoColor=white)](https://spring.io/projects/spring-boot)
-[![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![JWT Security](https://img.shields.io/badge/Security-JWT-black?style=for-the-badge&logo=jsonwebtokens)](https://jwt.io/)
-
-*Alora externaliza la urgencia y centraliza el cuidado mediante una API RESTful segura, conectando una App nativa Android (offline-first) con un visor web de emergencias (PWA).*
-
-[Explorar Documentación](#-documentación-api) · [Reportar Bug](#) · [Probar Localmente](#-despliegue-local)
-
-</div>
+- **Este backend** — Spring Boot 3 + PostgreSQL
+- **App Android** — cliente móvil para cuidadores
+- **PWA** — generación de fichas médicas en PDF para emergencias
 
 ---
 
-##  Sobre el Proyecto
+## Tecnologías
 
-**Alora** nace con la premisa de humanizar el cuidado geriátrico y de personas dependientes. Esta API actúa como el cerebro central que orquesta la persistencia de datos médicos sensibles, la autenticación criptográfica y la generación de una **"Tarjeta Vital" (QR)**.
-
-El sistema resuelve un problema crítico: permitir que los servicios de emergencia accedan a datos vitales (alergias, medicación) al instante, sin sacrificar la privacidad del paciente, mediante un sistema de desbloqueo multinivel.
-
-###  Funcionalidades Core
-- **Seguridad Criptográfica:** Autenticación mediante JSON Web Tokens (JWT) y protección de rutas.
-- **Tarjeta Vital Dinámica:** Generación de tokens únicos para códigos QR que enlazan al perfil público/privado del paciente.
-- **Bitácora Multi-cuidador:** Endpoints para la sincronización transaccional de hitos diarios y toma de medicación.
-- **Soporte Offline-First:** API diseñada para resolver sincronizaciones destructivas desde clientes móviles con almacenamiento en caché (Room/SQLite).
-
----
-
-## Stack Tecnológico
-
-La arquitectura ha sido diseñada priorizando la solidez, la integridad referencial y la escalabilidad vertical:
-
-| Categoría | Tecnologías |
-| --- | --- |
-| **Core & Framework** | Java 21, Spring Boot 3.x, Spring Web |
-| **Persistencia** | PostgreSQL 16, Spring Data JPA, Hibernate 6, Flyway (Migraciones) |
-| **Seguridad** | Spring Security, JWT (HMAC-SHA256) |
-| **Testing** | JUnit 5, Mockito, MockMvc |
-| **DevOps & Docs** | Docker Compose, Gradle, OpenAPI 3.1 (Swagger UI) |
+| Capa | Tecnología |
+|------|-----------|
+| Lenguaje | Java 21 |
+| Framework | Spring Boot 3.5 |
+| Seguridad | Spring Security + JWT (jjwt 0.11) |
+| Persistencia | Spring Data JPA + PostgreSQL |
+| Migraciones | Flyway |
+| IA | Google Gemini 2.5 Flash |
+| QR | ZXing 3.5 |
+| Tests | JUnit 5 + Mockito |
+| Documentación | OpenAPI 3.0 (`openapi.yaml`) |
 
 ---
 
-## Arquitectura Modular
+## Requisitos previos
 
-El dominio de la aplicación está estrictamente separado por responsabilidades para evitar el acoplamiento:
-
-* **`auth`**: Controlador de acceso. Emisión y validación de tokens JWT.
-* **`perfil`**: Gestión CRUD del historial clínico, contactos de emergencia y establecimiento del PIN criptográfico.
-* **`bitacora`**: Lógica de negocio para los registros diarios y cronograma de medicación.
-* **`publico`**: Módulo sin estado (stateless) y sin autenticación JWT, dedicado exclusivamente a renderizar los datos del QR y manejar el *challenge* del PIN.
-
-*(Opcional: Reemplaza este texto por una imagen de tu diagrama de arquitectura)*
-> `![Diagrama de Arquitectura](./docs/arquitectura.png)`
+- Java 21
+- Docker (para levantar PostgreSQL) o una instancia local en el puerto `5432`
+- Las dos variables de entorno descritas abajo
 
 ---
 
-## Despliegue Local (Quick Start)
+## Variables de entorno
 
-Levantar la infraestructura de Alora toma menos de 5 minutos gracias a Docker.
+| Variable | Descripción |
+|----------|-------------|
+| `JWT_SECRET` | Clave Base64 de mínimo 32 bytes para firmar los JWT |
+| `GEMINI_API_KEY` | API key de Google AI Studio para el asistente IA |
 
-### 1. Prerrequisitos
-- [Java 21 JDK](https://adoptium.net/)
-- [Docker & Docker Compose](https://www.docker.com/)
+### Cómo configurarlas en IntelliJ IDEA
 
-### 2. Configuración del Entorno
-Clona el repositorio y crea un archivo `.env` en el directorio raíz basándote en el archivo de ejemplo:
+1. `Run` → `Edit Configurations`
+2. Selecciona la configuración de `AloraBackendApplication`
+3. En el campo **Environment variables** añade:
+   ```
+   JWT_SECRET=dHUgY2xhdmUgc2VjcmV0YSBkZSBtaW5pbW8gMzIgYnl0ZXM=;GEMINI_API_KEY=tu_clave_aqui
+   ```
+
+### Generar un JWT_SECRET válido (PowerShell)
+
+```powershell
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }) -as [byte[]])
+```
+
+---
+
+## Arranque local
+
+### 1. Levantar PostgreSQL con Docker
 
 ```bash
-git clone [https://github.com/tu-usuario/alora-backend.git](https://github.com/tu-usuario/alora-backend.git)
-cd alora-backend
+cd postgres
+docker compose up -d
+```
+
+La base de datos se crea en `localhost:5432/alora` con usuario `postgres` / contraseña `postgres`.
+Flyway aplica las migraciones automáticamente al arrancar la app.
+
+### 2. Iniciar la aplicación
+
+```bash
+./gradlew bootRun
+```
+
+La API queda disponible en `http://localhost:8080`.
+
+---
+
+## Ejecutar los tests
+
+```bash
+./gradlew test
+```
+
+Los tests unitarios cubren `AuthService` y `CareLogService` con JUnit 5 + Mockito.
+
+---
+
+## Documentación de la API
+
+El archivo `openapi.yaml` en la raíz del proyecto contiene la especificación completa.
+Puedes importarlo en:
+
+- **Swagger UI** — `https://editor.swagger.io`
+- **Postman** — `Import` → selecciona `openapi.yaml`
+- **Insomnia** — `Import/Export` → `Import Data`
+
+### Autenticación
+
+Todos los endpoints protegidos requieren el header:
+```
+Authorization: Bearer <token>
+```
+
+El token se obtiene en `POST /auth/register` o `POST /auth/login`.
+
+---
+
+## Endpoints principales
+
+| Módulo | Ruta base | Auth |
+|--------|-----------|------|
+| Autenticación | `/auth/**` | Pública |
+| Perfiles | `/api/profiles/**` | JWT |
+| Registros de cuidado | `/api/profiles/{id}/logs` | JWT |
+| Recordatorios | `/api/profiles/{id}/reminders` | JWT |
+| Asistente IA | `/api/profiles/{id}/chat` | JWT |
+| Perfil público (QR) | `/public/profile/**` | Pública |
+| Administración | `/api/admin/**` | JWT + rol ADMIN |
+
+Consulta `openapi.yaml` para la lista completa con parámetros y schemas.
+
+---
+
+## Estructura del proyecto
+
+```
+src/main/java/com/alora/
+├── auth/           # Autenticación, usuarios, JWT
+├── carelog/        # Registro de cuidados + asistente IA
+├── config/         # Seguridad, filtros, beans globales
+├── exception/      # Manejo centralizado de errores
+├── profile/        # Perfiles de pacientes y QR
+└── reminder/       # Recordatorios y alarmas
+```
+
+---
+
+## Roles
+
+| Rol | Descripción |
+|-----|-------------|
+| `USER` | Cuidador — puede gestionar sus propios perfiles y datos |
+| `ADMIN` | Administrador — acceso a `/api/admin/**` |
+
+Por defecto, todos los registros obtienen el rol `USER`.
+Para promover a `ADMIN` usa `PATCH /api/admin/users/{id}/role`.
