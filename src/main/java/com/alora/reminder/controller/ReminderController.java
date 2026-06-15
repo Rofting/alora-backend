@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/profiles/{profileId}/reminders")
@@ -44,5 +45,13 @@ public class ReminderController {
     public ResponseEntity<Void> deleteReminder(@PathVariable Long profileId, @PathVariable Long reminderId) {
         reminderService.deleteReminder(profileId, reminderId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{reminderId}/speak")
+    public ResponseEntity<Map<String, String>> getSpeakText(
+            @PathVariable Long profileId,
+            @PathVariable Long reminderId) {
+        String texto = reminderService.getSpeakText(profileId, reminderId);
+        return ResponseEntity.ok(Map.of("texto", texto));
     }
 }

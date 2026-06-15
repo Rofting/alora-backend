@@ -1,6 +1,7 @@
 package com.alora.reminder.service;
 
 import com.alora.auth.model.User;
+import com.alora.config.GeminiService;
 import com.alora.exception.NotFoundException;
 import com.alora.profile.model.Profile;
 import com.alora.profile.repository.ProfileRepository;
@@ -20,6 +21,7 @@ public class ReminderService {
 
     private final ReminderRepository reminderRepository;
     private final ProfileRepository profileRepository;
+    private final GeminiService geminiService;
 
     public List<ReminderDto> getReminders(Long profileId) {
         getOwnedProfile(profileId);
@@ -63,6 +65,29 @@ public class ReminderService {
         Reminder reminder = reminderRepository.findByIdAndProfile_Id(reminderId, profileId)
                 .orElseThrow(() -> new NotFoundException("Recordatorio no encontrado"));
         reminderRepository.delete(reminder);
+    }
+
+    public String getSpeakText(Long profileId, Long reminderId) {
+        Profile profile = getOwnedProfile(profileId);
+        Reminder reminder = reminderRepository.findByIdAndProfile_Id(reminderId, profileId)
+                .orElseThrow(() -> new NotFoundException("Recordatorio no encontrado"));
+
+        String hora = reminder.getTime().toString(); // ej: "09:00"
+        String prompt = """
+                Eres Alora, una asistente de cuidados geriátricos empática y cercana.
+                Genera un mensaje de voz corto (máximo 2 frases) para avisarle amablemente a %s
+                que son las %s y es hora de: "%s".
+                Menciona la hora de forma natural (por ejemplo "son las nueve de la mañana", "son las seis y media de la tarde").
+                El tono debe ser cálido, claro y sin tecnicismos, como si fuera una persona de confianza.
+                Termina con una pregunta sencilla para confirmar si ya lo ha hecho.
+                Responde SOLO con el texto del mensaje, sin formato ni comillas.
+                """.formatted(profile.getFullName(), hora, reminder.getTitle());
+
+        try {
+            return geminiService.generateText(prompt);
+        } catch (com.alora.config.GeminiService.GeminiUnavailableException e) {
+            return "Son las " + hora + ". Es hora de: " + reminder.getTitle() + ". ¿Ya lo has hecho?";
+        }
     }
 
     private Profile getOwnedProfile(Long profileId) {

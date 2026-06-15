@@ -66,7 +66,7 @@ public class Profile {
     @ToString.Include
     private String qrToken;
 
-    @Column(length = 12)
+    @Column(length = 72)
     private String pinCode;
 
     @Column(name = "photo_url")
