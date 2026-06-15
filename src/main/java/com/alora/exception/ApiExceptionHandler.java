@@ -25,6 +25,7 @@ public class ApiExceptionHandler {
     }
 
 
+
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(NotFoundException ex, WebRequest req) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
